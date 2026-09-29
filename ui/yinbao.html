@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>融资担保与授信管理平台</title>
+<style>
+/* =============================================================
+   融资担保与授信管理平台 · 界面原型
+   菜单与字段取自源码 fronted/src/views：
+   guarantee / be_guaranteed / approve / finance / repay
+   / composite_cost / interest / monitor / system
+   审批层级取自源码：子公司党委会 → 子公司董事会 → 公司党委会
+                    → 公司董事会 → 集团党委会 → 集团董事会
+   表格与金额均为示例数据，用于界面演示
+   ============================================================= */
+:root{
+  --blue:#2F6FED;
+  --blue-h:#1F5BD6;
+  --blue-l:#ECF2FE;
+  --green:#12A150;
+  --orange:#E08C12;
+  --red:#D9363E;
+  --gray:#8A94A6;
+  --side:#1D2433;
+  --side2:#232C3D;
+  --page:#F4F6FA;
+  --card:#FFFFFF;
+  --line:#E5E9F0;
+  --line2:#DCE1EA;
+  --t1:#1F2733;
+  --t2:#5A6577;
+  --t3:#8A94A6;
+  --font:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--page);color:var(--t1);
+  font-family:var(--font);font-size:13px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.app{display:flex;min-height:100vh}
+
+/* 侧边栏 */
+.side{
+  width:216px;flex:0 0 216px;background:var(--side);color:#C7D0DE;
+  display:flex;flex-direction:column;
+}
+.brand{
+  height:56px;display:flex;align-items:center;gap:9px;padding:0 16px;
+  border-bottom:1px solid rgba(255,255,255,.07);
+}
+.brand-mark{
+  width:26px;height:26px;border-radius:7px;background:linear-gradient(145deg,#4D86F7,#2F6FED);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;flex:0 0 auto;
+}
+.brand-txt{font-size:13.5px;font-weight:600;color:#fff;letter-spacing:.01em;white-space:nowrap}
+.brand-sub{font-size:10.5px;color:#7E8CA3;letter-spacing:.06em}
+
+.menu{padding:10px 8px;flex:1}
+.menu-group{font-size:10.5px;color:#66738A;letter-spacing:.14em;padding:12px 10px 6px}
+.mi{
+  display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;
+  font-size:13px;color:#B9C4D4;margin-bottom:2px;cursor:default;
+}
+.mi .dot{width:6px;height:6px;border-radius:2px;background:#5A6880;flex:0 0 auto}
+.mi.on{background:var(--blue);color:#fff}
+.mi.on .dot{background:#fff}
+.mi .cnt{
+  margin-left:auto;font-family:var(--mono);font-size:10.5px;background:rgba(255,255,255,.12);
+  padding:0 6px;border-radius:9px;line-height:16px;
+}
+.mi.on .cnt{background:rgba(255,255,255,.24)}
+.side-foot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.07);font-size:11px;color:#66738A}
+
+/* 主区 */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{
+  height:56px;flex:0 0 56px;background:#fff;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:16px;padding:0 20px;
+}
+.crumb{font-size:13px;color:var(--t3)}
+.crumb b{color:var(--t1);font-weight:600}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+.search{
+  display:flex;align-items:center;gap:7px;background:var(--page);border:1px solid var(--line);
+  border-radius:16px;padding:5px 12px;color:var(--t3);font-size:12.5px;min-width:180px;
+}
+.bell{position:relative;width:16px;height:16px;border:1.6px solid var(--t2);border-radius:6px 6px 3px 3px}
+.bell::before{content:"";position:absolute;left:50%;bottom:-4px;width:4px;height:2px;background:var(--t2);transform:translateX(-50%);border-radius:0 0 2px 2px}
+.bell i{position:absolute;top:-2px;right:-3px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid #fff}
+.user{display:flex;align-items:center;gap:8px}
+.avatar{
+  width:28px;height:28px;border-radius:50%;background:linear-gradient(145deg,#4D86F7,#2F6FED);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;
+}
+.user span{font-size:12.5px;color:var(--t2)}
+
+.body{flex:1;padding:16px 20px 22px;display:grid;grid-template-columns:1fr 336px;gap:16px;align-items:start}
+.col{min-width:0;display:flex;flex-direction:column;gap:16px}
+
+/* 卡片 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.card-h{
+  height:44px;display:flex;align-items:center;gap:10px;padding:0 16px;
+  border-bottom:1px solid var(--line);font-size:13.5px;font-weight:600;
+}
+.card-h .sub{font-size:11.5px;color:var(--t3);font-weight:400}
+.card-h .more{margin-left:auto;font-size:12px;color:var(--blue);font-weight:400}
+.card-b{padding:16px}
+
+/* 指标卡 */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.stat.g::after{background:var(--green)}
+.stat.o::after{background:var(--orange)}
+.stat.p::after{background:#7A5AF8}
+.stat-lab{font-size:12px;color:var(--t3);margin-bottom:6px}
+.stat-val{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;line-height:1.2}
+.stat-val small{font-size:12px;color:var(--t3);font-family:var(--font);margin-left:3px;font-weight:400}
+.stat-foot{font-size:11.5px;color:var(--t3);margin-top:6px}
+.stat-foot em{font-style:normal;color:var(--green)}
+.stat-foot i{font-style:normal;color:var(--red)}
+
+/* 筛选 */
+.filter{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.fld{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--t2)}
+.fld input,.fld select{
+  height:30px;border:1px solid var(--line2);border-radius:5px;padding:0 9px;
+  font-size:12.5px;color:var(--t1);background:#fff;font-family:inherit;outline:none;min-width:132px;
+}
+.fld input:focus,.fld select:focus{border-color:var(--blue)}
+.btn{
+  height:30px;padding:0 15px;border-radius:5px;border:1px solid var(--line2);background:#fff;
+  color:var(--t2);font-size:12.5px;font-family:inherit;cursor:pointer;
+}
+.btn-p{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-p:hover{background:var(--blue-h)}
+.btn-t{background:var(--blue-l);border-color:#C9DBFC;color:var(--blue)}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{
+  text-align:left;font-weight:600;color:var(--t2);background:#FAFBFD;
+  padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px;
+}
+td{padding:11px 12px;border-bottom:1px solid #F1F4F8;color:var(--t1);white-space:nowrap}
+tbody tr:hover{background:#F7F9FD}
+tbody tr.on{background:var(--blue-l)}
+.num{font-family:var(--mono);text-align:right}
+.tag{
+  display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 8px;border-radius:4px;
+  font-size:11.5px;border:1px solid;
+}
+.tag::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.tag.ok{color:var(--green);background:#EAF7EF;border-color:#C6E9D4}
+.tag.run{color:var(--blue);background:var(--blue-l);border-color:#C9DBFC}
+.tag.wait{color:var(--orange);background:#FDF4E6;border-color:#F6E0BB}
+.tag.done{color:var(--gray);background:#F3F5F9;border-color:#E2E7F0}
+.link{color:var(--blue);cursor:pointer}
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:12px 16px;font-size:12.5px;color:var(--t2)}
+.pg{min-width:28px;height:28px;border:1px solid var(--line2);border-radius:5px;display:flex;align-items:center;justify-content:center;background:#fff;font-size:12.5px}
+.pg.on{background:var(--blue);border-color:var(--blue);color:#fff}
+
+/* 审批流 */
+.flow{padding:6px 16px 16px}
+.node{display:grid;grid-template-columns:24px 1fr;gap:11px;position:relative;padding:11px 0}
+.node:not(:last-child)::before{
+  content:"";position:absolute;left:11px;top:32px;bottom:-4px;width:2px;background:var(--line2);
+}
+.node.ok:not(:last-child)::before{background:#9FD3B4}
+.node.cur:not(:last-child)::before{background:linear-gradient(#2F6FED,#DCE1EA)}
+.mk{
+  width:22px;height:22px;border-radius:50%;border:2px solid var(--line2);background:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--t3);
+  font-family:var(--mono);position:relative;z-index:1;
+}
+.node.ok .mk{border-color:var(--green);background:var(--green);color:#fff}
+.node.cur .mk{border-color:var(--blue);background:var(--blue);color:#fff;box-shadow:0 0 0 4px rgba(47,111,237,.14)}
+.nd-t{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.nd-t em{font-style:normal;font-size:11px;color:var(--t3);font-weight:400;margin-left:auto;font-family:var(--mono)}
+.nd-s{font-size:11.5px;color:var(--t3);margin-top:2px}
+.node.cur .nd-s{color:var(--blue)}
+
+/* 描述列表 */
+.desc{display:grid;grid-template-columns:1fr 1fr;gap:0 22px}
+.desc.three{grid-template-columns:1fr 1fr 1fr}
+.di{display:flex;gap:10px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed #EEF1F6}
+.di dt{color:var(--t3);flex:0 0 118px;margin:0}
+.di dd{margin:0;color:var(--t1);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.di dd.money{font-family:var(--mono)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 16px}
+.tb{
+  padding:11px 14px;font-size:13px;color:var(--t2);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:default;
+}
+.tb.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.note{
+  font-size:11.5px;color:var(--t3);background:#FAFBFD;border:1px solid var(--line);
+  border-radius:6px;padding:9px 12px;line-height:1.7;
+}
+.badge-demo{
+  font-size:10.5px;color:var(--orange);background:#FDF4E6;border:1px solid #F6E0BB;
+  padding:1px 7px;border-radius:4px;font-weight:400;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 侧边栏 -->
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-mark">银</div>
+      <div>
+        <div class="brand-txt">产业集团</div>
+        <div class="brand-sub">融资担保与授信管理平台</div>
+      </div>
+    </div>
+    <nav class="menu">
+      <div class="menu-group">业务管理</div>
+      <div class="mi on"><i class="dot"></i>授信管理<span class="cnt">12</span></div>
+      <div class="mi"><i class="dot"></i>担保管理</div>
+      <div class="mi"><i class="dot"></i>被担保管理</div>
+      <div class="mi"><i class="dot"></i>审批中心<span class="cnt">5</span></div>
+
+      <div class="menu-group">财务与资金</div>
+      <div class="mi"><i class="dot"></i>财务管理</div>
+      <div class="mi"><i class="dot"></i>还款管理</div>
+      <div class="mi"><i class="dot"></i>综合成本</div>
+      <div class="mi"><i class="dot"></i>利息管理</div>
+
+      <div class="menu-group">系统</div>
+      <div class="mi"><i class="dot"></i>操作日志</div>
+      <div class="mi"><i class="dot"></i>角色权限</div>
+      <div class="mi"><i class="dot"></i>机构与人员</div>
+    </nav>
+    <div class="side-foot">当前角色：授信管理岗</div>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="main">
+    <header class="top">
+      <div class="crumb">授信管理 / <b>授信台账</b></div>
+      <div class="top-right">
+        <div class="search">搜索授信编号 / 单位名称</div>
+        <div class="bell"><i></i></div>
+        <div class="user"><div class="avatar">张</div><span>张明 · 授信管理岗</span></div>
+      </div>
+    </header>
+
+    <div class="body">
+
+      <!-- 左列 -->
+      <div class="col">
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-lab">授信总额</div>
+            <div class="stat-val">42,600.00<small>万元</small></div>
+            <div class="stat-foot">较上年 <em>+8.4%</em></div>
+          </div>
+          <div class="stat g">
+            <div class="stat-lab">已用额度</div>
+            <div class="stat-val">28,940.00<small>万元</small></div>
+            <div class="stat-foot">额度使用率 67.9%</div>
+          </div>
+          <div class="stat o">
+            <div class="stat-lab">剩余可用额度</div>
+            <div class="stat-val">13,660.00<small>万元</small></div>
+            <div class="stat-foot">其中 2 笔临近到期</div>
+          </div>
+          <div class="stat p">
+            <div class="stat-lab">在途审批</div>
+            <div class="stat-val">5<small>笔</small></div>
+            <div class="stat-foot">平均流转 <i>3.2</i> 天</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">授信台账 <span class="badge-demo">示例数据</span><span class="more">导出表格</span></div>
+          <div class="card-b" style="padding-bottom:12px">
+            <div class="filter">
+              <div class="fld">授信名称 <input value="" placeholder="请输入"></div>
+              <div class="fld">授信单位
+                <select><option>全部</option><option>产业集团有限公司</option><option>建设子公司</option></select>
+              </div>
+              <div class="fld">状态
+                <select><option>全部</option><option>已生效</option><option>审批中</option><option>已归档</option></select>
+              </div>
+              <button class="btn btn-p">查询</button>
+              <button class="btn">重置</button>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>授信名称</th><th>授信单位</th><th>金融机构</th>
+                <th style="text-align:right">授信金额（万元）</th>
+                <th style="text-align:right">剩余金额（万元）</th>
+                <th>授信起始日期</th><th>状态</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="on">
+                <td>2026 年度集团综合授信</td><td>产业集团有限公司</td><td>中国银行盐城分行</td>
+                <td class="num">18,000.00</td><td class="num">6,420.00</td><td>2026-01-05</td>
+                <td><span class="tag run">审批中</span></td><td><span class="link">跟踪</span></td>
+              </tr>
+              <tr>
+                <td>子公司流动资金授信</td><td>建设子公司</td><td>江苏银行城北支行</td>
+                <td class="num">12,600.00</td><td class="num">3,180.00</td><td>2025-11-18</td>
+                <td><span class="tag ok">已生效</span></td><td><span class="link">跟踪</span></td>
+              </tr>
+              <tr>
+                <td>项目专项授信（二期）</td><td>物流子公司</td><td>交通银行盐城分行</td>
+                <td class="num">8,000.00</td><td class="num">2,400.00</td><td>2025-09-30</td>
+                <td><span class="tag ok">已生效</span></td><td><span class="link">跟踪</span></td>
+              </tr>
+              <tr>
+                <td>设备采购配套授信</td><td>制造子公司</td><td>中国农业银行</td>
+                <td class="num">4,000.00</td><td class="num">1,660.00</td><td>2025-06-12</td>
+                <td><span class="tag wait">待补充材料</span></td><td><span class="link">跟踪</span></td>
+              </tr>
+              <tr>
+                <td>2025 年度集团综合授信</td><td>产业集团有限公司</td><td>中国银行盐城分行</td>
+                <td class="num">15,000.00</td><td class="num">0.00</td><td>2025-01-08</td>
+                <td><span class="tag done">已归档</span></td><td><span class="link">查看</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="pager">
+            <span>共 12 条</span>
+            <span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">›</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="tabs">
+            <div class="tb on">担保信息</div>
+            <div class="tb">收函与备案</div>
+            <div class="tb">还款计划</div>
+            <div class="tb">操作日志</div>
+          </div>
+          <div class="card-b">
+            <div class="desc three">
+              <div class="di"><dt>担保单位</dt><dd>产业集团有限公司</dd></div>
+              <div class="di"><dt>被担保单位</dt><dd>建设子公司</dd></div>
+              <div class="di"><dt>被担保单位母公司</dt><dd>产业集团有限公司</dd></div>
+              <div class="di"><dt>担保金额</dt><dd class="money">12,600.00 万元</dd></div>
+              <div class="di"><dt>担保方式</dt><dd>连带责任保证</dd></div>
+              <div class="di"><dt>担保事项</dt><dd>流动资金贷款担保</dd></div>
+              <div class="di"><dt>担保开始日期</dt><dd class="money">2025-11-18</dd></div>
+              <div class="di"><dt>担保结束日期</dt><dd class="money">2027-11-17</dd></div>
+              <div class="di"><dt>产权关系</dt><dd>全资子公司</dd></div>
+              <div class="di"><dt>单位性质</dt><dd>国有企业</dd></div>
+              <div class="di"><dt>收函金额</dt><dd class="money">12,600.00 万元</dd></div>
+              <div class="di"><dt>收函日期</dt><dd class="money">2025-11-20</dd></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 右列 -->
+      <div class="col">
+        <div class="card">
+          <div class="card-h">审批流程<span class="sub">2026 年度集团综合授信</span></div>
+          <div class="flow">
+            <div class="node ok">
+              <div class="mk">✓</div>
+              <div>
+                <div class="nd-t">子公司党委会<em>01-06</em></div>
+                <div class="nd-s">同意，无附加条件 · 李建国</div>
+              </div>
+            </div>
+            <div class="node ok">
+              <div class="mk">✓</div>
+              <div>
+                <div class="nd-t">子公司董事会<em>01-08</em></div>
+                <div class="nd-s">决议通过 · 附董事会决议文件</div>
+              </div>
+            </div>
+            <div class="node ok">
+              <div class="mk">✓</div>
+              <div>
+                <div class="nd-t">公司党委会<em>01-12</em></div>
+                <div class="nd-s">同意 · 王海涛</div>
+              </div>
+            </div>
+            <div class="node cur">
+              <div class="mk">4</div>
+              <div>
+                <div class="nd-t">公司董事会<em>进行中</em></div>
+                <div class="nd-s">已提交，等待上会表决（已等待 2 天）</div>
+              </div>
+            </div>
+            <div class="node">
+              <div class="mk">5</div>
+              <div>
+                <div class="nd-t">集团党委会<em>待流转</em></div>
+                <div class="nd-s">上一节点通过后自动流转</div>
+              </div>
+            </div>
+            <div class="node">
+              <div class="mk">6</div>
+              <div>
+                <div class="nd-t">集团董事会<em>待流转</em></div>
+                <div class="nd-s">需附国资委备案表</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">放款与用信</div>
+          <div class="card-b" style="padding-top:8px">
+            <div class="desc" style="grid-template-columns:1fr">
+              <div class="di"><dt>已放款金额</dt><dd class="money">11,580.00 万元</dd></div>
+              <div class="di"><dt>本期应还</dt><dd class="money">1,200.00 万元</dd></div>
+              <div class="di"><dt>还款日期</dt><dd class="money">2026-03-20</dd></div>
+              <div class="di"><dt>综合成本</dt><dd class="money">4.35%</dd></div>
+              <div class="di"><dt>利息计提</dt><dd class="money">41.98 万元</dd></div>
+            </div>
+            <div class="note" style="margin-top:12px">
+              系统按授信节点自动生成还款计划与利息计提，逾期前 15 天推送提醒。
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">归档材料</div>
+          <div class="card-b" style="padding-top:8px">
+            <div class="desc" style="grid-template-columns:1fr">
+              <div class="di"><dt>申请担保函</dt><dd>已上传 · 2026-01-05</dd></div>
+              <div class="di"><dt>集团董事会决议</dt><dd>已上传 · 2026-01-08</dd></div>
+              <div class="di"><dt>国资委备案表</dt><dd style="color:var(--orange)">待上传</dd></div>
+              <div class="di"><dt>国资委备案金额</dt><dd class="money">18,000.00 万元</dd></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

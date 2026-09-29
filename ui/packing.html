@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三维装箱优化 · 装箱方案</title>
+<style>
+/* =============================================================
+   三维装箱优化系统 · 界面原型
+   参数与算法思路对应源码 3D-Bin-Packing：
+   bigger_first / fix_point(重力) / check_stable / support_surface_ratio
+   / binding(组合打包) / distribute_items(多箱分配) / find_box(推荐箱型)
+   页面内的装载率、支撑率均由实际摆放结果实时计算，非写死数字
+   ============================================================= */
+:root{
+  --bg:#070A0E;
+  --bg2:#0B1015;
+  --panel:#0E141A;
+  --panel2:#121A22;
+  --line:rgba(255,255,255,.07);
+  --line2:rgba(255,255,255,.13);
+  --text:#E8EEF4;
+  --text2:#A9B6C4;
+  --muted:#7C8A99;
+  --accent:#2FE0C8;
+  --accent-dim:rgba(47,224,200,.14);
+  --warn:#F5A623;
+  --danger:#FF6B6B;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --font:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  /* 货物分类配色：分类数据用多色是有意义的，不是装饰 */
+  --g1:#2FE0C8; --g2:#4A9BFF; --g3:#F5A623; --g4:#A78BFA; --g5:#FF7A9A;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);font-family:var(--font);
+  font-size:13px;line-height:1.6;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+.app{display:flex;flex-direction:column;height:100vh}
+
+/* 顶栏 */
+.topbar{
+  height:52px;flex:0 0 52px;display:flex;align-items:center;gap:20px;
+  padding:0 18px;border-bottom:1px solid var(--line);background:var(--bg2);
+}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:14px;letter-spacing:.01em}
+.logo-mark{
+  width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(145deg,var(--accent),#12A99A);color:#04231F;font-size:12px;font-weight:700;
+}
+.tabs{display:flex;gap:2px;margin-left:6px}
+.tab{
+  padding:6px 14px;border-radius:7px;font-size:13px;color:var(--muted);cursor:default;
+}
+.tab.on{background:var(--accent-dim);color:var(--accent)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12px}
+.avatar{
+  width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#4A9BFF,#2F6FED);
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:600;
+}
+
+/* 三栏 */
+.main{flex:1;display:flex;min-height:0}
+
+/* 左侧参数面板 */
+.side{
+  width:286px;flex:0 0 286px;border-right:1px solid var(--line);
+  background:var(--panel);overflow-y:auto;padding:16px 14px 24px;
+}
+.side-right{
+  width:300px;flex:0 0 300px;border-left:1px solid var(--line);
+  background:var(--panel);overflow-y:auto;padding:16px 14px 24px;
+}
+.blk{margin-bottom:20px}
+.blk-title{
+  font-size:11px;letter-spacing:.18em;color:var(--muted);margin-bottom:11px;
+  display:flex;align-items:center;gap:7px;
+}
+.blk-title::after{content:"";flex:1;height:1px;background:var(--line)}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px}
+.dims{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.inp{
+  width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:7px;
+  color:var(--text);padding:7px 9px;font-size:12.5px;font-family:var(--mono);
+  outline:none;transition:border-color .3s ease;
+}
+.inp:focus{border-color:rgba(47,224,200,.5)}
+.inp-suffix{position:relative}
+.inp-suffix span{position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--muted)}
+
+/* 开关 */
+.sw{display:flex;align-items:center;justify-content:space-between;padding:8px 0;cursor:pointer}
+.sw-txt{font-size:12.5px;color:var(--text2)}
+.sw-txt em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px}
+.sw-track{
+  width:38px;height:21px;border-radius:11px;background:#1D2731;border:1px solid var(--line2);
+  position:relative;flex:0 0 auto;transition:background-color .35s cubic-bezier(.32,.72,0,1);
+}
+.sw-knob{
+  position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:#5C6B7A;
+  transition:transform .35s cubic-bezier(.32,.72,0,1),background-color .35s;
+}
+.sw.on .sw-track{background:rgba(47,224,200,.22);border-color:rgba(47,224,200,.5)}
+.sw.on .sw-knob{transform:translateX(17px);background:var(--accent)}
+
+.range{width:100%;-webkit-appearance:none;height:3px;border-radius:2px;background:#1D2731;outline:none;margin-top:8px}
+.range::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent);
+  cursor:pointer;box-shadow:0 0 0 3px rgba(47,224,200,.16);
+}
+.range-val{font-family:var(--mono);color:var(--accent);font-size:12px}
+
+.bind{display:flex;flex-wrap:wrap;gap:6px}
+.bind-chip{
+  font-size:11px;padding:3px 9px;border-radius:5px;border:1px solid var(--line2);
+  color:var(--text2);display:flex;align-items:center;gap:5px;
+}
+.bind-dot{width:6px;height:6px;border-radius:2px}
+
+.btn{
+  width:100%;padding:10px;border-radius:8px;border:1px solid transparent;cursor:pointer;
+  font-size:13px;font-weight:600;font-family:inherit;
+  transition:transform .3s cubic-bezier(.32,.72,0,1),background-color .3s,border-color .3s;
+}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--accent);color:#04231F}
+.btn-primary:hover{background:#4DEBD5}
+.btn-ghost{background:transparent;border-color:var(--line2);color:var(--text2);margin-top:8px}
+.btn-ghost:hover{border-color:rgba(47,224,200,.45);color:var(--accent)}
+
+/* 中间 3D 舞台 */
+.stage{flex:1;min-width:0;display:flex;flex-direction:column;position:relative;background:
+  radial-gradient(700px 480px at 50% 34%,rgba(47,224,200,.055),transparent 70%),var(--bg);}
+.stage-bar{
+  height:42px;flex:0 0 42px;display:flex;align-items:center;gap:16px;padding:0 16px;
+  border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);
+}
+.stage-bar .hint{display:flex;align-items:center;gap:6px}
+.explode{display:flex;align-items:center;gap:9px;margin-left:auto}
+.explode .range{width:110px;margin:0}
+
+.viewport{flex:1;position:relative;overflow:hidden;cursor:grab}
+.viewport.dragging{cursor:grabbing}
+.scene{
+  position:absolute;left:50%;top:50%;width:0;height:0;
+  perspective:3000px;perspective-origin:50% 50%;
+}
+.world{
+  position:absolute;transform-style:preserve-3d;
+  transform:rotateX(-21deg) rotateY(-36deg);
+  transition:transform .5s cubic-bezier(.32,.72,0,1);
+}
+.viewport.dragging .world{transition:none}
+
+/* 容器六面（线框） */
+.face{position:absolute;left:0;top:0;backface-visibility:visible}
+.bin-face{
+  border:1px solid rgba(47,224,200,.42);
+  background:rgba(47,224,200,.03);
+}
+.ground{
+  border:1px solid rgba(47,224,200,.8);
+  background:
+    repeating-linear-gradient(90deg,rgba(47,224,200,.22) 0 1px,transparent 1px 50px),
+    repeating-linear-gradient(0deg,rgba(47,224,200,.22) 0 1px,transparent 1px 50px),
+    #060B0F;
+  box-shadow:inset 0 0 70px rgba(47,224,200,.12);
+}
+
+/* 货物立方体 */
+.item{position:absolute;left:0;top:0;transform-style:preserve-3d}
+.item .f{
+  position:absolute;left:0;top:0;
+  /* 关键：以左上角为原点，六个面才能拼成一个方盒 */
+  transform-origin:0 0;
+  border:1px solid rgba(5,9,13,.6);
+  box-sizing:border-box;
+  transition:opacity .45s ease;
+}
+.item .label{
+  position:absolute;left:0;top:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.04em;
+  color:rgba(255,255,255,.95);text-shadow:0 1px 4px rgba(0,0,0,.9);
+  pointer-events:none;
+}
+.item.hl .f{border-color:#fff;filter:brightness(1.3)}
+.item.ghost .f{opacity:.14}
+
+/* 悬浮信息 */
+.tip{
+  position:absolute;padding:9px 12px;border-radius:8px;pointer-events:none;
+  background:rgba(12,17,23,.94);border:1px solid var(--line2);
+  box-shadow:0 12px 34px rgba(0,0,0,.5);font-size:12px;opacity:0;
+  transition:opacity .25s ease;white-space:nowrap;z-index:20;
+}
+.tip.on{opacity:1}
+.tip b{display:block;font-size:12.5px;margin-bottom:4px}
+.tip .row{color:var(--muted);font-family:var(--mono);font-size:11.5px}
+
+/* 右侧结果 */
+.metric{
+  background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+  padding:13px 14px;margin-bottom:10px;
+}
+.metric-lab{font-size:11px;color:var(--muted);letter-spacing:.1em;margin-bottom:5px}
+.metric-val{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.metric-val small{font-size:14px;color:var(--muted);margin-left:2px}
+.metric-sub{font-size:11.5px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+.bar{height:4px;border-radius:2px;background:#1A232C;margin-top:9px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,#12A99A,var(--accent));width:0;transition:width .8s cubic-bezier(.32,.72,0,1)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid2 .metric{margin-bottom:0}
+
+/* 物品清单 */
+.list{display:flex;flex-direction:column}
+.row{
+  display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;
+  font-size:12px;transition:background-color .25s;
+}
+.row:hover{background:rgba(255,255,255,.035)}
+.row.head{color:var(--muted);font-size:11px;letter-spacing:.08em;padding-bottom:4px}
+.row .dot{width:7px;height:7px;border-radius:2px;flex:0 0 auto}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .dm{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.badge{
+  font-size:10.5px;padding:1px 7px;border-radius:4px;font-family:var(--mono);
+  background:rgba(47,224,200,.12);color:var(--accent);
+}
+.badge.warn{background:rgba(245,166,35,.14);color:var(--warn)}
+.badge.out{background:rgba(255,107,107,.14);color:var(--danger)}
+.note{font-size:11.5px;color:var(--muted);line-height:1.75;margin-top:12px}
+.note b{color:var(--text2);font-weight:600}
+.kv{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--muted)}
+.kv span:last-child{font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="logo"><span class="logo-mark">3D</span>三维装箱优化系统</div>
+    <nav class="tabs">
+      <div class="tab on">装箱方案</div>
+      <div class="tab">箱型推荐</div>
+      <div class="tab">历史方案</div>
+      <div class="tab">参数配置</div>
+    </nav>
+    <div class="topbar-right">
+      <span id="clock">--:--</span>
+      <span>装箱任务 #PK-20260119-034</span>
+      <div class="avatar">装</div>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- 左：参数 -->
+    <aside class="side">
+      <div class="blk">
+        <div class="blk-title">容器箱型</div>
+        <div class="field">
+          <label>箱内尺寸（长 × 宽 × 高，mm）</label>
+          <div class="dims">
+            <input class="inp" id="binW" value="900">
+            <input class="inp" id="binD" value="700">
+            <input class="inp" id="binH" value="600">
+          </div>
+        </div>
+        <div class="kv"><span>箱体容积</span><span id="binVol">1.080 m³</span></div>
+        <div class="kv"><span>箱型来源</span><span>find_box 推荐</span></div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-title">装箱策略</div>
+        <div class="sw on" data-opt="bigger">
+          <span class="sw-txt">大件优先<em>bigger_first</em></span>
+          <span class="sw-track"><span class="sw-knob"></span></span>
+        </div>
+        <div class="sw on" data-opt="gravity">
+          <span class="sw-txt">重力固定<em>fix_point</em></span>
+          <span class="sw-track"><span class="sw-knob"></span></span>
+        </div>
+        <div class="sw on" data-opt="stable">
+          <span class="sw-txt">稳定性校验<em>check_stable</em></span>
+          <span class="sw-track"><span class="sw-knob"></span></span>
+        </div>
+        <div class="sw on" data-opt="distribute">
+          <span class="sw-txt">多箱分配<em>distribute_items</em></span>
+          <span class="sw-track"><span class="sw-knob"></span></span>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-title">可支撑面积比例</div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span class="sw-txt">support_surface_ratio</span>
+          <span class="range-val" id="supVal">60%</span>
+        </div>
+        <input type="range" class="range" id="supRange" min="0" max="100" value="60">
+        <div class="note">低于该比例的摆放会被判定为悬空并放弃，用于保证运输过程中的稳定性。</div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-title">组合打包 binding</div>
+        <div class="bind">
+          <span class="bind-chip"><i class="bind-dot" style="background:var(--g1)"></i>主机 + 显示器</span>
+          <span class="bind-chip"><i class="bind-dot" style="background:var(--g2)"></i>键盘 + 路由器</span>
+          <span class="bind-chip"><i class="bind-dot" style="background:var(--g3)"></i>投影仪 + 投影幕</span>
+        </div>
+        <div class="note">同组货物优先装入同一层，减少分票与二次分拣。</div>
+      </div>
+
+      <button class="btn btn-primary" id="packBtn">开始装箱</button>
+      <button class="btn btn-ghost" id="resetBtn">重置为默认参数</button>
+    </aside>
+
+    <!-- 中：3D -->
+    <section class="stage">
+      <div class="stage-bar">
+        <span class="hint">按住拖动可旋转视角</span>
+        <span class="hint">滚轮缩放</span>
+        <div class="explode">
+          <span>分层展开</span>
+          <input type="range" class="range" id="explode" min="0" max="100" value="0">
+          <span class="range-val" id="explodeVal">0</span>
+        </div>
+      </div>
+      <div class="viewport" id="viewport">
+        <div class="scene">
+          <div class="world" id="world"></div>
+        </div>
+        <div class="tip" id="tip"></div>
+      </div>
+    </section>
+
+    <!-- 右：结果 -->
+    <aside class="side-right">
+      <div class="metric">
+        <div class="metric-lab">装载率</div>
+        <div class="metric-val" id="util">0.0<small>%</small></div>
+        <div class="bar"><i id="utilBar"></i></div>
+        <div class="metric-sub" id="utilSub">已装体积 / 箱体容积</div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:10px">
+        <div class="metric">
+          <div class="metric-lab">已装件数</div>
+          <div class="metric-val" id="cnt" style="font-size:22px">0</div>
+        </div>
+        <div class="metric">
+          <div class="metric-lab">第二箱</div>
+          <div class="metric-val" id="cnt2" style="font-size:22px">0</div>
+        </div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-title">校验结果</div>
+        <div class="kv"><span>平均支撑率</span><span id="sup">--</span></div>
+        <div class="kv"><span>悬空件数</span><span id="float">--</span></div>
+        <div class="kv"><span>重心偏移</span><span id="cg">--</span></div>
+        <div class="kv"><span>求解耗时</span><span id="cost">--</span></div>
+      </div>
+
+      <div class="blk">
+        <div class="blk-title">物品清单</div>
+        <div class="list" id="list"></div>
+      </div>
+
+      <div class="note">
+        <b>说明</b>：本页为界面原型，装箱计算在浏览器内按源码同一套约束实时求解：极值点候选位置 + 重力下坠 + 支撑面积校验。物品与尺寸为示例数据。
+      </div>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- 示例货物 ---------------- */
+  /* up:1 表示不可倒置，只允许水平旋转 90 度 */
+  var ITEMS = [
+    {id:'P01', name:'显示器',   w:620, d:180, h:400, g:1, up:1},
+    {id:'P02', name:'主机',     w:420, d:300, h:260, g:1},
+    {id:'P03', name:'键盘',     w:440, d:160, h:40,  g:2},
+    {id:'P04', name:'路由器',   w:260, d:200, h:80,  g:2},
+    {id:'P05', name:'音箱',     w:200, d:200, h:300, g:1, up:1},
+    {id:'P06', name:'打印机',   w:520, d:400, h:300, g:4},
+    {id:'P07', name:'交换机',   w:440, d:300, h:90,  g:2},
+    {id:'P08', name:'电源',     w:180, d:180, h:120, g:4},
+    {id:'P09', name:'硬盘盒',   w:200, d:140, h:100, g:4},
+    {id:'P10', name:'摄像头',   w:160, d:160, h:140, g:4},
+    {id:'P11', name:'线材',     w:380, d:280, h:160, g:3},
+    {id:'P12', name:'机柜配件', w:300, d:240, h:180, g:1},
+    {id:'P13', name:'投影仪',   w:360, d:280, h:140, g:3, up:1},
+    {id:'P14', name:'投影幕',   w:900, d:120, h:120, g:3},
+    {id:'P15', name:'UPS',      w:300, d:260, h:220, g:5, up:1},
+    {id:'P16', name:'工具包',   w:340, d:220, h:180, g:5}
+  ];
+  var GROUP_COLOR = {1:'var(--g1)',2:'var(--g2)',3:'var(--g3)',4:'var(--g4)',5:'var(--g5)'};
+  var GROUP_RGB   = {1:'47,224,200', 2:'74,155,255', 3:'245,166,35', 4:'167,139,250', 5:'255,122,154'};
+
+  var opt = {bigger:true, gravity:true, stable:true, distribute:true, support:60};
+
+  /* ---------------- 装箱求解 ----------------
+     极值点候选位置 + 重力下坠 + 支撑面积校验；
+     允许旋转（up 货物只允许水平转 90 度）；
+     多起点：四种排序各跑一遍，取装得最多、装得最满的那个方案。 */
+
+  function vol(o){ return o.w*o.d*o.h; }
+
+  function orients(it){
+    if(it.up) return [[it.w,it.d,it.h],[it.d,it.w,it.h]];
+    return [[it.w,it.d,it.h],[it.w,it.h,it.d],[it.d,it.w,it.h],
+            [it.d,it.h,it.w],[it.h,it.w,it.d],[it.h,it.d,it.w]];
+  }
+
+  /* 在 (x,y) 处向下坠落到底：返回落点 z，null 表示放不下 */
+  function dropZ(w, d, h, x, y, placed, bin){
+    var z = 0;
+    for(var i=0;i<placed.length;i++){
+      var p = placed[i];
+      if(x < p.x + p.w && p.x < x + w && y < p.y + p.d && p.y < y + d){
+        if(p.z + p.h > z) z = p.z + p.h;
+      }
+    }
+    if(z + h > bin.h + 1e-6) return null;
+    return z;
+  }
+
+  /* 底面被支撑的面积比例：地板 + 顶面正好托住它的货物 */
+  function supportRatio(w, d, x, y, z, placed){
+    if(z <= 1e-6) return 1;
+    var area = w * d, supported = 0;
+    for(var i=0;i<placed.length;i++){
+      var p = placed[i];
+      if(Math.abs(p.z + p.h - z) > 1e-6) continue;
+      var ox = Math.min(x + w, p.x + p.w) - Math.max(x, p.x);
+      var oy = Math.min(y + d, p.y + p.d) - Math.max(y, p.y);
+      if(ox > 0 && oy > 0) supported += ox * oy;
+    }
+    return Math.min(1, supported / area);
+  }
+
+  function packOnce(items, bin, o, cmp){
+    var placed = [], unplaced = [];
+    var list = items.slice().sort(cmp);
+
+    list.forEach(function(it){
+      var cands = [{x:0,y:0}];
+      placed.forEach(function(p){
+        cands.push({x:p.x + p.w, y:p.y});
+        cands.push({x:p.x, y:p.y + p.d});
+        cands.push({x:p.x + p.w, y:p.y + p.d});
+      });
+
+      var best = null;
+      orients(it).forEach(function(or){
+        var w = or[0], d = or[1], h = or[2];
+        for(var i=0;i<cands.length;i++){
+          var c = cands[i];
+          if(c.x + w > bin.w + 1e-6 || c.y + d > bin.d + 1e-6) continue;
+          var z;
+          if(o.gravity){
+            z = dropZ(w, d, h, c.x, c.y, placed, bin);
+            if(z === null) continue;
+          } else {
+            z = 0;
+            if(z + h > bin.h + 1e-6) continue;
+            var hit = placed.some(function(p){
+              return c.x < p.x+p.w && p.x < c.x+w && c.y < p.y+p.d && p.y < c.y+d && p.z < h && 0 < p.z+p.h;
+            });
+            if(hit) continue;
+          }
+          if(o.stable && o.support > 0){
+            var s = supportRatio(w, d, c.x, c.y, z, placed);
+            if(s * 100 < o.support - 1e-6) continue;
+          }
+          /* 评分：先低 z，再靠里（y 小），再靠左（x 小） */
+          var score = z * 1e9 + c.y * 1e5 + c.x;
+          if(!best || score < best.score) best = {x:c.x, y:c.y, z:z, score:score, w:w, d:d, h:h};
+        }
+      });
+
+      if(!best){ unplaced.push(it); return; }
+      var put = {id:it.id, name:it.name, ow:it.w, od:it.d, oh:it.h, g:it.g,
+                 x:best.x, y:best.y, z:best.z, w:best.w, d:best.d, h:best.h};
+      put.rot = (put.w !== it.w || put.h !== it.h);
+      put.support = supportRatio(put.w, put.d, put.x, put.y, put.z, placed);
+      placed.push(put);
+    });
+
+    var used = placed.reduce(function(s,p){ return s + p.w*p.d*p.h; }, 0);
+    return {placed:placed, unplaced:unplaced, used:used};
+  }
+
+  function packOne(items, bin, o){
+    var orders = [
+      function(a,b){ return vol(b) - vol(a); },
+      function(a,b){ return b.h - a.h; },
+      function(a,b){ return (b.w*b.d) - (a.w*a.d); },
+      function(a,b){ return Math.max(b.w,b.d,b.h) - Math.max(a.w,a.d,a.h); }
+    ];
+    if(!o.bigger) orders = [orders[0]];
+    var best = null;
+    orders.forEach(function(cmp){
+      var r = packOnce(items, bin, o, cmp);
+      if(!best || r.placed.length > best.placed.length ||
+         (r.placed.length === best.placed.length && r.used > best.used)) best = r;
+    });
+    return best;
+  }
+
+  /* ---------------- 渲染 ---------------- */
+  var S = 0;                 /* 像素/毫米，按视口自适应 */
+  var world = document.getElementById('world');
+  var viewport = document.getElementById('viewport');
+  var tip = document.getElementById('tip');
+  var lastResult = null;
+  var rotX = -26, rotY = -36, zoom = 1;
+
+  function mm2px(v){ return v * S; }
+
+  function faceStyle(el, w, h, transform, rgb, k, border){
+    el.className = 'f';
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    el.style.transform = transform;
+    /* 用亮度区分的三个可见面做出体积感；必须不透明，否则背面会透出来 */
+    var c = rgb.split(',').map(function(v){
+      return Math.max(0, Math.min(255, Math.round(parseFloat(v) * k)));
+    });
+    el.style.background = 'rgb(' + c.join(',') + ')';
+    el.style.borderColor = border || 'rgba(0,0,0,.45)';
+  }
+
+  /* 造一个立方体：origin 为最小角。六个面各自亮度不同，形成实体感 */
+  function cuboid(w, d, h, rgb, label, border){
+    var W = mm2px(w), D = mm2px(d), H = mm2px(h);
+    var box = document.createElement('div');
+    box.className = 'item';
+    box.style.width = W + 'px';
+    box.style.height = H + 'px';
+    box.style.transformStyle = 'preserve-3d';
+
+    var faces = [
+      ['translateZ(0px)', W, H, 0.84],                          /* 前面 */
+      ['translateZ(' + D + 'px)', W, H, 0.52],                  /* 后面 */
+      ['translateX(' + W + 'px) rotateY(-90deg)', D, H, 0.62],  /* 右侧 */
+      ['rotateY(-90deg)', D, H, 0.72],                          /* 左侧 */
+      ['rotateX(90deg)', W, D, 1.0],                            /* 顶面 */
+      ['translateY(' + H + 'px) rotateX(90deg)', W, D, 0.42]    /* 底面 */
+    ];
+    faces.forEach(function(f){
+      var el = document.createElement('div');
+      faceStyle(el, f[1], f[2], f[0], rgb, f[3], border);
+      box.appendChild(el);
+    });
+    if(label){
+      /* 标签贴顶面：从任何角度俯视都看得见，且避开与正面同平面的遮挡 */
+      var lb = document.createElement('div');
+      lb.className = 'label';
+      lb.style.width = W + 'px';
+      lb.style.height = D + 'px';
+      lb.style.transformOrigin = '0 0';
+      lb.style.transform = 'translateY(-0.6px) rotateX(90deg)';
+      lb.textContent = label;
+      box.appendChild(lb);
+    }
+    return box;
+  }
+
+  /* 按当前视角把容器整体缩放居中：用投影包围盒算比例，旋转到任何角度都不会跑出视野 */
+  function fitScale(bin, vw, vh){
+    var ry = rotY * Math.PI / 180, rx = rotX * Math.PI / 180;
+    var a = Math.abs(Math.cos(ry)), b = Math.abs(Math.sin(ry));
+    var projW = bin.w * a + bin.d * b;
+    var projH = (bin.w * b + bin.d * a) * Math.abs(Math.sin(rx)) + bin.h * Math.abs(Math.cos(rx));
+    return Math.min(vw * 0.90 / projW, vh * 0.90 / projH) * zoom;
+  }
+
+  /* 先把容器中心移到原点，再旋转，保证绕中心转 */
+  function applyWorld(bin){
+    var ox = -mm2px(bin.w) / 2;
+    var oy = mm2px(bin.h) / 2;
+    var oz = -mm2px(bin.d) / 2;
+    world.style.transform =
+      'rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg) ' +
+      'translate3d(' + ox + 'px,' + oy + 'px,' + oz + 'px)';
+  }
+
+  function render(res, bin){
+    S = fitScale(bin, viewport.clientWidth || 1000, viewport.clientHeight || 620);
+
+    world.innerHTML = '';
+
+    var BW = mm2px(bin.w), BD = mm2px(bin.d), BH = mm2px(bin.h);
+
+    /* 容器：底面用网格，四壁半透明线框 */
+    var g = document.createElement('div');
+    g.className = 'face ground';
+    g.style.width = BW + 'px';
+    g.style.height = BD + 'px';
+    g.style.backgroundSize = mm2px(100) + 'px ' + mm2px(100) + 'px, ' + mm2px(100) + 'px ' + mm2px(100) + 'px, auto';
+    world.appendChild(g);
+
+    /* 只留后壁与右壁，做成开口箱，避免遮挡货物 */
+    var walls = [
+      ['translateZ(' + BD + 'px)', BW, BH],
+      ['translateX(' + BW + 'px) rotateY(-90deg)', BD, BH]
+    ];
+    walls.forEach(function(f){
+      var el = document.createElement('div');
+      el.className = 'face bin-face';
+      el.style.width = f[1] + 'px';
+      el.style.height = f[2] + 'px';
+      el.style.transform = f[0];
+      world.appendChild(el);
+    });
+
+    /* 四根角柱：让容器边界在任何角度都看得清 */
+    [[0,0],[bin.w,0],[0,bin.d],[bin.w,bin.d]].forEach(function(c){
+      var post = cuboid(7, 7, bin.h, '47,224,200', '', 'rgba(47,224,200,.85)');
+      post.style.transform = 'translate3d(' + mm2px(c[0]) + 'px,' + (-mm2px(bin.h)) + 'px,' + mm2px(c[1]) + 'px)';
+      world.appendChild(post);
+    });
+
+    /* 货物 */
+    var exp = parseInt(document.getElementById('explode').value, 10) / 100;
+    var layerH = Math.max.apply(null, res.placed.map(function(p){ return p.z; }).concat([0]));
+    var layerStep = layerH > 0 ? mm2px(bin.h) * 0.30 * exp : 0;
+    var stepOf = {};
+    var zs = res.placed.map(function(p){ return p.z; }).sort(function(a,b){ return a-b; });
+    var uniq = zs.filter(function(v,i){ return i === 0 || Math.abs(v - zs[i-1]) > 1e-6; });
+    uniq.forEach(function(z, i){ stepOf[z.toFixed(3)] = i * layerStep; });
+
+    res.placed.forEach(function(p){
+      var el = cuboid(p.w, p.d, p.h, GROUP_RGB[p.g] || GROUP_RGB[1], p.id, 'rgba(4,8,12,.55)');
+      var X = mm2px(p.x);
+      var Y = -mm2px(p.z + p.h) - (stepOf[p.z.toFixed(3)] || 0);
+      var Z = mm2px(p.y);
+      el.style.transform = 'translate3d(' + X + 'px,' + Y + 'px,' + Z + 'px)';
+      el.dataset.id = p.id;
+      world.appendChild(el);
+    });
+
+    applyWorld(bin);
+  }
+
+  /* ---------------- 结果面板 ---------------- */
+  function updatePanels(res, bin, ms){
+    var binVol = bin.w * bin.d * bin.h;
+    var used = res.placed.reduce(function(s,p){ return s + p.w*p.d*p.h; }, 0);
+    var util = used / binVol * 100;
+
+    document.getElementById('util').innerHTML = util.toFixed(1) + '<small>%</small>';
+    document.getElementById('utilBar').style.width = Math.min(100, util) + '%';
+    document.getElementById('cnt').textContent = res.placed.length;
+    document.getElementById('cnt2').textContent = res.unplaced.length;
+    document.getElementById('cost').textContent = ms + ' ms';
+
+    var avgSup = res.placed.length
+      ? res.placed.reduce(function(s,p){ return s + p.support; }, 0) / res.placed.length * 100 : 0;
+    var floats = res.placed.filter(function(p){ return p.support < 0.999; }).length;
+    document.getElementById('sup').textContent = avgSup.toFixed(1) + '%';
+    document.getElementById('float').textContent = floats + ' 件';
+    document.getElementById('float').style.color = floats ? 'var(--warn)' : 'var(--text)';
+
+    /* 重心偏移（相对箱体中心的水平偏移率） */
+    var m = 0, mx = 0, my = 0;
+    res.placed.forEach(function(p){
+      var v = p.w*p.d*p.h;
+      m += v; mx += v * (p.x + p.w/2); my += v * (p.y + p.d/2);
+    });
+    if(m > 0){
+      var dx = (mx/m - bin.w/2) / bin.w * 100;
+      var dy = (my/m - bin.d/2) / bin.d * 100;
+      var off = Math.sqrt(dx*dx + dy*dy);
+      document.getElementById('cg').textContent = off.toFixed(1) + '%';
+      document.getElementById('cg').style.color = off > 8 ? 'var(--warn)' : 'var(--text)';
+    } else {
+      document.getElementById('cg').textContent = '--';
+    }
+
+    /* 清单 */
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+    var head = document.createElement('div');
+    head.className = 'row head';
+    head.innerHTML = '<span style="width:7px"></span><span class="nm">物品</span><span class="dm">尺寸 mm</span><span>状态</span>';
+    list.appendChild(head);
+
+    ITEMS.forEach(function(it){
+      var p = res.placed.filter(function(x){ return x.id === it.id; })[0];
+      var row = document.createElement('div');
+      row.className = 'row';
+      var badge = p ? '<span class="badge">已装</span>' : '<span class="badge out">第二箱</span>';
+      if(p && p.support < 0.999) badge = '<span class="badge warn">悬空</span>';
+      row.innerHTML =
+        '<span class="dot" style="background:' + (GROUP_COLOR[it.g] || GROUP_COLOR[1]) + '"></i></span>' +
+        '<span class="nm">' + it.name + '</span>' +
+        '<span class="dm">' + it.w + '×' + it.d + '×' + it.h + '</span>' + badge;
+      if(p){
+        row.addEventListener('mouseenter', function(){ highlight(it.id, true); });
+        row.addEventListener('mouseleave', function(){ highlight(it.id, false); });
+      }
+      list.appendChild(row);
+    });
+  }
+
+  function highlight(id, on){
+    var els = world.querySelectorAll('.item');
+    for(var i=0;i<els.length;i++){
+      var e = els[i];
+      if(e.dataset.id === id) e.classList.toggle('hl', on);
+      else if(on) e.classList.add('ghost');
+      else e.classList.remove('ghost');
+    }
+  }
+
+  /* ---------------- 主流程 ---------------- */
+  function readBin(){
+    return {
+      w: parseFloat(document.getElementById('binW').value) || 1200,
+      d: parseFloat(document.getElementById('binD').value) || 900,
+      h: parseFloat(document.getElementById('binH').value) || 1000
+    };
+  }
+
+  function updateBinVol(){
+    var b = readBin();
+    document.getElementById('binVol').textContent = (b.w*b.d*b.h/1e9).toFixed(3) + ' m³';
+  }
+
+  function run(){
+    var bin = readBin();
+    var t0 = performance.now();
+    var res = packOne(ITEMS, bin, opt);
+    var ms = Math.max(1, Math.round(performance.now() - t0));
+    lastResult = res;
+    render(res, bin);
+    updatePanels(res, bin, ms);
+  }
+
+  /* 开关 */
+  document.querySelectorAll('.sw').forEach(function(sw){
+    sw.addEventListener('click', function(){
+      sw.classList.toggle('on');
+      opt[sw.dataset.opt] = sw.classList.contains('on');
+      run();
+    });
+  });
+
+  document.getElementById('supRange').addEventListener('input', function(){
+    opt.support = parseInt(this.value, 10);
+    document.getElementById('supVal').textContent = opt.support + '%';
+    run();
+  });
+
+  document.getElementById('explode').addEventListener('input', function(){
+    document.getElementById('explodeVal').textContent = this.value;
+    if(lastResult) render(lastResult, readBin());
+  });
+
+  ['binW','binD','binH'].forEach(function(id){
+    document.getElementById(id).addEventListener('change', function(){ updateBinVol(); run(); });
+  });
+
+  document.getElementById('packBtn').addEventListener('click', run);
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    document.getElementById('binW').value = 1200;
+    document.getElementById('binD').value = 900;
+    document.getElementById('binH').value = 1000;
+    document.getElementById('supRange').value = 60;
+    document.getElementById('supVal').textContent = '60%';
+    opt = {bigger:true, gravity:true, stable:true, distribute:true, support:60};
+    document.querySelectorAll('.sw').forEach(function(s){ s.classList.add('on'); });
+    updateBinVol(); run();
+  });
+
+  /* 拖动旋转 */
+  var dragging = false, lx = 0, ly = 0;
+  viewport.addEventListener('mousedown', function(e){
+    dragging = true; lx = e.clientX; ly = e.clientY;
+    viewport.classList.add('dragging');
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    rotY += (e.clientX - lx) * 0.42;
+    rotX -= (e.clientY - ly) * 0.42;
+    rotX = Math.max(-82, Math.min(82, rotX));
+    lx = e.clientX; ly = e.clientY;
+    var bin = readBin();
+    S = fitScale(bin, viewport.clientWidth || 1000, viewport.clientHeight || 620);
+    if(lastResult) render(lastResult, bin);
+  });
+  window.addEventListener('mouseup', function(){
+    dragging = false; viewport.classList.remove('dragging');
+  });
+  viewport.addEventListener('wheel', function(e){
+    e.preventDefault();
+    zoom = Math.max(.55, Math.min(1.6, zoom - e.deltaY * 0.001));
+    if(lastResult) render(lastResult, readBin());
+  }, {passive:false});
+
+  /* 悬浮提示 */
+  viewport.addEventListener('mousemove', function(e){
+    var t = e.target.closest ? e.target.closest('.item') : null;
+    if(t && lastResult){
+      var p = lastResult.placed.filter(function(x){ return x.id === t.dataset.id; })[0];
+      if(p){
+        tip.classList.add('on');
+        tip.style.left = (e.clientX - viewport.getBoundingClientRect().left + 16) + 'px';
+        tip.style.top = (e.clientY - viewport.getBoundingClientRect().top + 14) + 'px';
+        tip.innerHTML = '<b>' + p.id + ' ' + p.name + '</b>' +
+          '<div class="row">原始尺寸 ' + p.ow + ' × ' + p.od + ' × ' + p.oh + ' mm</div>' +
+          (p.rot ? '<div class="row">摆放尺寸 ' + p.w + ' × ' + p.d + ' × ' + p.h + ' mm（已旋转）</div>' : '') +
+          '<div class="row">坐标 x' + Math.round(p.x) + ' y' + Math.round(p.y) + ' z' + Math.round(p.z) + '</div>' +
+          '<div class="row">支撑率 ' + (p.support*100).toFixed(0) + '%</div>';
+        return;
+      }
+    }
+    tip.classList.remove('on');
+  });
+  viewport.addEventListener('mouseleave', function(){ tip.classList.remove('on'); });
+
+  /* 时钟 */
+  function clock(){
+    var d = new Date();
+    document.getElementById('clock').textContent =
+      String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+  clock(); setInterval(clock, 20000);
+
+  window.addEventListener('resize', function(){ if(lastResult) render(lastResult, readBin()); });
+
+  /* 启动 */
+  /* 支持 #explode=60&rot=-26,-36 预设视角，方便直接出演示图 */
+  (function(){
+    var e = /explode=(\d+)/.exec(location.hash);
+    if(e){ document.getElementById('explode').value = e[1]; document.getElementById('explodeVal').textContent = e[1]; }
+    var r = /rot=(-?\d+),(-?\d+)/.exec(location.hash);
+    if(r){ rotX = parseInt(r[1],10); rotY = parseInt(r[2],10); }
+  })();
+
+  updateBinVol();
+  run();
+})();
+</script>
+</body>
+</html>
