@@ -1,5 +1,7 @@
 # 团队介绍页（给第三方看）
 
+**线上地址：https://zephyrgq.github.io/team-intro/** （GitHub Pages，推送 main 分支后约 1 分钟自动更新）
+
 ## 文件
 
 - `index.html` — 整个页面就这一个文件。样式、脚本、两张界面截图全部写在里面，不依赖任何外网资源，也不依赖旁边的文件夹。
