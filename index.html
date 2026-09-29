@@ -1335,8 +1335,9 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
          靠近边缘与底部渐隐；少量行使用品牌色 */
       var fs0 = Math.max(8, Math.round(s*0.135));
       var rowH = fs0*1.32;
-      var TEXTBUF = "PYTHON SQL RAG AGENT VUE REDIS MYSQL ETL TSP OCR NGINX API 装箱 路径 排班 知识库 客服 识别 看板 审批流 私有化 交付 SYSTEM PLATFORM SERVICE DATA INDEX ";
-      var bufPos = Math.floor(Math.random()*40);
+      var TEXTBUF = "SYSTEM PLATFORM SERVICE DATA INDEX PYTHON SQL RAG AGENT VUE REDIS MYSQL ETL TSP OCR NGINX API ";
+      var bufPos = 0;
+      var rowIdx = 0;
       for(var ry = topY + fs0*0.8; ry < baseY - 2; ry += rowH){
         var runs = [], runS = null;
         for(var rx = x0 + 1.0*s; rx <= x0 + 13.6*s; rx += 4){
@@ -1348,30 +1349,29 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
           }
         }
         if(runS !== null && (x0 + 13.6*s) - runS > 34) runs.push([runS, x0 + 13.6*s]);
+        /* 每行的起始相位取字符宽度的整数倍，保证同一列上下对齐 */
+        var rowPhase = (rowIdx * 7) * fs0 * 0.6;
+        rowIdx++;
         runs.forEach(function(run){
           var xs = run[0], xe = run[1];
-          var accent = Math.random() < 0.08 ? (Math.random()<0.5?'blue':'warm') : 'ink';
-          var gxx = xs + rand(0,3);
+          var gxx = xs + rowPhase % (fs0*0.6);
           while(gxx < xe - 2){
             var ch = TEXTBUF[bufPos % TEXTBUF.length];
             bufPos++;
             if(ch === ' '){ gxx += fs0*0.34; continue; }
-            var edge = Math.min((gxx - xs)/16, (xe - gxx)/16, 1);
+            var edge = Math.min((gxx - xs)/14, (xe - gxx)/14, 1);
             parts.push({
-              x:gxx, y:ry + rand(-.5,.5), ch:ch,
-              fs:fs0*rand(.94,1.04),
-              a:(.42 + Math.random()*.26) * (.3 + .7*edge) * (0.82 + 0.18*(1-(ry-topY)/shapeH)),
-              c:accent, ph:rand(0,6.28)
+              x:gxx, y:ry, ch:ch,
+              fs:fs0,
+              a:.5 * (.3 + .7*edge),
+              c:'ink', ph:0
             });
             gxx += fs0*0.6;
           }
         });
       }
 
-      /* 1) 脊线：沿圆角路径布点 */
-      sampleAlong(pathPts, Math.max(9, s*0.16), 2).forEach(function(q){
-        parts.push({x:q[0], y:q[1], r:rand(1.8,2.8), a:rand(.5,.75), glyph:false, c:'ink', ph:rand(0,6.28)});
-      });
+
       /* 2) 峰顶关节大点（落在原始折点上方） */
       MARK.forEach(function(p){
         parts.push({x:x0+p[0]*s, y:y0+p[1]*s, r:s*0.095+2.6, a:.92, glyph:false, c:'ink', ph:rand(0,6.28)});
@@ -1381,9 +1381,8 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
       var step = Math.max(26, Math.round(W/44));
       for(var yy = step*0.6; yy < H-10; yy += step){
         for(var xx = step*0.6; xx < W-10; xx += step){
-          if(Math.random() > 0.4) continue;
-          parts.push({x:xx+rand(-6,6), y:yy+rand(-6,6), r:rand(.7,1.5), a:rand(.035,.09),
-                      glyph:Math.random()<.4, c:'ink', ph:rand(0,6.28)});
+          if(Math.random() > 0.55) continue;
+          parts.push({x:xx, y:yy, r:1, a:.07, glyph:false, c:'ink', ph:0});
         }
       }
       parts.push({sq:1, x:W*0.13, y:H*0.26, r:6.5, a:.75, ph:0});
@@ -1417,7 +1416,7 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
         if(p.sq){
           ctx.fillRect(x - r, y - r, r*2, r*2);
         } else if(p.ch !== undefined){
-          ctx.font = Math.round(p.fs * (1 + f2*0.55)) + 'px ui-monospace,Menlo,monospace';
+          ctx.font = Math.round(p.fs * (1 + f2*0.5)) + 'px ui-monospace,Menlo,monospace';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText(p.ch, x, y);
         } else {
