@@ -770,12 +770,27 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
 #cases .case-slide{padding:clamp(4px,0.8vw,10px) 0}
 #casesTrack{align-items:flex-start}
 .case-slide{max-height:var(--case-max,calc(100dvh - 132px));overflow:hidden}
+@media(max-width:760px){.case-slide{max-height:none;overflow:visible}}
 .case-slide .shot-img{max-height:100%}
 .case-media-fit{transform-origin:top center}
 
 
 
 #ip{padding-top:clamp(46px,5vw,74px)}
+
+/* ============ 小屏纵向节奏（收掉多余留白） ============ */
+@media(max-width:760px){
+  :root{--pad-section:clamp(44px,7vw,64px)}
+  .sec-head{margin-bottom:clamp(24px,4vw,34px)}
+  #cases{padding:clamp(10px,2vw,16px) 0 clamp(10px,2vw,16px)}
+  .cases-bar{margin-bottom:clamp(6px,1.4vw,12px)}
+  .card-body{padding:clamp(16px,3vw,22px)}
+  .agent-band,.scope-band{margin-top:clamp(30px,5vw,44px)}
+  .contact{padding:clamp(36px,7vw,56px) clamp(20px,5vw,32px)}
+  footer{padding:clamp(18px,3vw,26px) 0}
+  /* 触屏没有悬停，隐藏“鼠标悬停”类提示 */
+  .route-tip{display:none}
+}
 </style>
 </head>
 <body>
@@ -2238,14 +2253,28 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
       track.style.height = 'auto';
       void track.offsetHeight;
 
-      /* 取最高的一屏定高，之后切屏不再变化 */
+      /* 小屏：跟随当前案例，避免短案例下方大片空白 */
+      if(window.innerWidth <= 760){
+        var idx = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+        idx = Math.max(0, Math.min(slides.length - 1, idx));
+        track.style.height = Math.ceil(Math.max(240, slides[idx].scrollHeight)) + 'px';
+        return;
+      }
+      /* 大屏：取最高的一屏定高，之后切屏不再变化 */
       var max = 0;
       slides.forEach(function(s){ max = Math.max(max, s.scrollHeight); });
       track.style.height = Math.ceil(max) + 'px';
     }
 
-    var t;
+    var t, t2;
     window.addEventListener('resize', function(){ clearTimeout(t); t = setTimeout(fit, 150); });
+    track.addEventListener('scroll', function(){
+      if(window.innerWidth > 760) return;
+      clearTimeout(t2); t2 = setTimeout(fit, 120);
+    }, {passive: true});
+    document.addEventListener('click', function(e){
+      if(e.target.closest && e.target.closest('#casesDots, #casePrev, #caseNext')) setTimeout(fit, 420);
+    });
     if(document.readyState === 'complete') setTimeout(fit, 80);
     else window.addEventListener('load', function(){ setTimeout(fit, 80); });
     if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ setTimeout(fit, 80); }); }
