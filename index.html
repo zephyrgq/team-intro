@@ -2261,13 +2261,17 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
     }
 
     /* 默认停在第 1 个案例；只有明确指到某个案例时才跳过去 */
-    (function(){
-      var h = window.location.hash;
-      var jump = null;
-      slides.forEach(function(s, i){ if(h && h === '#' + s.id) jump = i; });
-      if(jump === null){ track.scrollLeft = 0; cur = 0; sync(); }
-      else { cur = jump; sync(); }
-    })();
+    function resetToFirst(){
+      if(/^#case-/.test(window.location.hash)) return;
+      track.scrollLeft = 0;
+      cur = 0;
+      sync();
+    }
+    if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    resetToFirst();
+    window.addEventListener('load', resetToFirst);
+    window.addEventListener('pageshow', resetToFirst);
+    [120, 600, 1500].forEach(function(ms){ setTimeout(resetToFirst, ms); });
 
     prev.addEventListener('click', function(){ go(cur - 1); });
     next.addEventListener('click', function(){ go(cur + 1); });
