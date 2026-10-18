@@ -496,7 +496,8 @@ p{margin:0}
 .cases-btn:hover:not(:disabled){background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .cases-btn:disabled{opacity:.28;cursor:default}
 .cases-track{
-  display:flex;align-items:flex-start;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;
+  display:flex;align-items:flex-start;overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;scroll-behavior:smooth;
   scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior-x:contain;
   transition:height .55s var(--ease);
 }
