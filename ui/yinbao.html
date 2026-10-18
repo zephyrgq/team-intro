@@ -10,8 +10,8 @@
    菜单与字段取自源码 fronted/src/views：
    guarantee / be_guaranteed / approve / finance / repay
    / composite_cost / interest / monitor / system
-   审批层级取自源码：子公司党委会 → 子公司董事会 → 公司党委会
-                    → 公司董事会 → 集团党委会 → 集团董事会
+   审批层级取自源码：业务部受理 → 风控审核 → 财务复核
+                    → 分管副总审批 → 总经理审批 → 放款执行
    表格与金额均为示例数据，用于界面演示
    ============================================================= */
 :root{
@@ -204,6 +204,7 @@ tbody tr.on{background:var(--blue-l)}
   font-size:10.5px;color:var(--orange);background:#FDF4E6;border:1px solid #F6E0BB;
   padding:1px 7px;border-radius:4px;font-weight:400;
 }
+.redact{filter:blur(3.4px)}
 </style>
 </head>
 <body>
@@ -214,7 +215,7 @@ tbody tr.on{background:var(--blue-l)}
     <div class="brand">
       <div class="brand-mark">银</div>
       <div>
-        <div class="brand-txt">产业集团</div>
+        <div class="brand-txt">华东实业</div>
         <div class="brand-sub">融资担保与授信管理平台</div>
       </div>
     </div>
@@ -246,7 +247,7 @@ tbody tr.on{background:var(--blue-l)}
       <div class="top-right">
         <div class="search">搜索授信编号 / 单位名称</div>
         <div class="bell"><i></i></div>
-        <div class="user"><div class="avatar">张</div><span>张明 · 授信管理岗</span></div>
+        <div class="user"><div class="avatar">张</div><span>授信管理岗</span></div>
       </div>
     </header>
 
@@ -284,7 +285,7 @@ tbody tr.on{background:var(--blue-l)}
             <div class="filter">
               <div class="fld">授信名称 <input value="" placeholder="请输入"></div>
               <div class="fld">授信单位
-                <select><option>全部</option><option>产业集团有限公司</option><option>建设子公司</option></select>
+                <select><option>全部</option><option>华东实业有限公司</option><option>建设板块</option></select>
               </div>
               <div class="fld">状态
                 <select><option>全部</option><option>已生效</option><option>审批中</option><option>已归档</option></select>
@@ -305,27 +306,27 @@ tbody tr.on{background:var(--blue-l)}
             </thead>
             <tbody>
               <tr class="on">
-                <td>2026 年度集团综合授信</td><td>产业集团有限公司</td><td>某国有银行分行</td>
+                <td>2026 年度综合授信</td><td>华东实业有限公司</td><td>某国有银行分行</td>
                 <td class="num">18,000.00</td><td class="num">6,420.00</td><td>2026-01-05</td>
                 <td><span class="tag run">审批中</span></td><td><span class="link">跟踪</span></td>
               </tr>
               <tr>
-                <td>子公司流动资金授信</td><td>建设子公司</td><td>某城商行支行</td>
+                <td>板块流动资金授信</td><td>建设板块</td><td>某城商行支行</td>
                 <td class="num">12,600.00</td><td class="num">3,180.00</td><td>2025-11-18</td>
                 <td><span class="tag ok">已生效</span></td><td><span class="link">跟踪</span></td>
               </tr>
               <tr>
-                <td>项目专项授信（二期）</td><td>物流子公司</td><td>某股份制银行分行</td>
+                <td>项目专项授信（二期）</td><td>物流板块</td><td>某股份制银行分行</td>
                 <td class="num">8,000.00</td><td class="num">2,400.00</td><td>2025-09-30</td>
                 <td><span class="tag ok">已生效</span></td><td><span class="link">跟踪</span></td>
               </tr>
               <tr>
-                <td>设备采购配套授信</td><td>制造子公司</td><td>某商业银行支行</td>
+                <td>设备采购配套授信</td><td>制造板块</td><td>某商业银行支行</td>
                 <td class="num">4,000.00</td><td class="num">1,660.00</td><td>2025-06-12</td>
                 <td><span class="tag wait">待补充材料</span></td><td><span class="link">跟踪</span></td>
               </tr>
               <tr>
-                <td>2025 年度集团综合授信</td><td>产业集团有限公司</td><td>某国有银行分行</td>
+                <td>2025 年度综合授信</td><td>华东实业有限公司</td><td>某国有银行分行</td>
                 <td class="num">15,000.00</td><td class="num">0.00</td><td>2025-01-08</td>
                 <td><span class="tag done">已归档</span></td><td><span class="link">查看</span></td>
               </tr>
@@ -347,18 +348,18 @@ tbody tr.on{background:var(--blue-l)}
           </div>
           <div class="card-b">
             <div class="desc three">
-              <div class="di"><dt>担保单位</dt><dd>产业集团有限公司</dd></div>
-              <div class="di"><dt>被担保单位</dt><dd>建设子公司</dd></div>
-              <div class="di"><dt>被担保单位母公司</dt><dd>产业集团有限公司</dd></div>
-              <div class="di"><dt>担保金额</dt><dd class="money">12,600.00 万元</dd></div>
+              <div class="di"><dt>担保单位</dt><dd><span class="redact">华东实业有限公司</span></dd></div>
+              <div class="di"><dt>被担保单位</dt><dd><span class="redact">建设板块</span></dd></div>
+              <div class="di"><dt>被担保单位母公司</dt><dd><span class="redact">华东实业有限公司</span></dd></div>
+              <div class="di"><dt>担保金额</dt><dd class="money"><span class="redact">12,600.00 万元</span></dd></div>
               <div class="di"><dt>担保方式</dt><dd>连带责任保证</dd></div>
               <div class="di"><dt>担保事项</dt><dd>流动资金贷款担保</dd></div>
-              <div class="di"><dt>担保开始日期</dt><dd class="money">2025-11-18</dd></div>
-              <div class="di"><dt>担保结束日期</dt><dd class="money">2027-11-17</dd></div>
-              <div class="di"><dt>产权关系</dt><dd>全资子公司</dd></div>
-              <div class="di"><dt>单位性质</dt><dd>国有企业</dd></div>
-              <div class="di"><dt>收函金额</dt><dd class="money">12,600.00 万元</dd></div>
-              <div class="di"><dt>收函日期</dt><dd class="money">2025-11-20</dd></div>
+              <div class="di"><dt>担保开始日期</dt><dd class="money"><span class="redact">2025-11-18</span></dd></div>
+              <div class="di"><dt>担保结束日期</dt><dd class="money"><span class="redact">2027-11-17</span></dd></div>
+              <div class="di"><dt>款项用途</dt><dd>经营性周转</dd></div>
+              
+              <div class="di"><dt>收函金额</dt><dd class="money"><span class="redact">12,600.00 万元</span></dd></div>
+              <div class="di"><dt>收函日期</dt><dd class="money"><span class="redact">2025-11-20</span></dd></div>
             </div>
           </div>
         </div>
@@ -368,48 +369,48 @@ tbody tr.on{background:var(--blue-l)}
       <!-- 右列 -->
       <div class="col">
         <div class="card">
-          <div class="card-h">审批流程<span class="sub">2026 年度集团综合授信</span></div>
+          <div class="card-h">审批流程<span class="sub">2026 年度综合授信</span></div>
           <div class="flow">
             <div class="node ok">
               <div class="mk">✓</div>
               <div>
-                <div class="nd-t">子公司党委会<em>01-06</em></div>
-                <div class="nd-s">同意，无附加条件 · 李建国</div>
+                <div class="nd-t">业务部受理<em>01-06</em></div>
+                <div class="nd-s">资料齐全，转风控</div>
               </div>
             </div>
             <div class="node ok">
               <div class="mk">✓</div>
               <div>
-                <div class="nd-t">子公司董事会<em>01-08</em></div>
-                <div class="nd-s">决议通过 · 附董事会决议文件</div>
+                <div class="nd-t">风控审核<em>01-08</em></div>
+                <div class="nd-s">风险可控，同意授信</div>
               </div>
             </div>
             <div class="node ok">
               <div class="mk">✓</div>
               <div>
-                <div class="nd-t">公司党委会<em>01-12</em></div>
-                <div class="nd-s">同意 · 王海涛</div>
+                <div class="nd-t">财务复核<em>01-12</em></div>
+                <div class="nd-s">额度与账期核对通过</div>
               </div>
             </div>
             <div class="node cur">
               <div class="mk">4</div>
               <div>
-                <div class="nd-t">公司董事会<em>进行中</em></div>
-                <div class="nd-s">已提交，等待上会表决（已等待 2 天）</div>
+                <div class="nd-t">分管副总审批<em>进行中</em></div>
+                <div class="nd-s">已提交，等待审批（已等待 2 天）</div>
               </div>
             </div>
             <div class="node">
               <div class="mk">5</div>
               <div>
-                <div class="nd-t">集团党委会<em>待流转</em></div>
+                <div class="nd-t">总经理审批<em>待流转</em></div>
                 <div class="nd-s">上一节点通过后自动流转</div>
               </div>
             </div>
             <div class="node">
               <div class="mk">6</div>
               <div>
-                <div class="nd-t">集团董事会<em>待流转</em></div>
-                <div class="nd-s">需附国资委备案表</div>
+                <div class="nd-t">放款执行<em>待流转</em></div>
+                <div class="nd-s">合同与担保手续完成后放款</div>
               </div>
             </div>
           </div>
@@ -419,11 +420,11 @@ tbody tr.on{background:var(--blue-l)}
           <div class="card-h">放款与用信</div>
           <div class="card-b" style="padding-top:8px">
             <div class="desc" style="grid-template-columns:1fr">
-              <div class="di"><dt>已放款金额</dt><dd class="money">11,580.00 万元</dd></div>
-              <div class="di"><dt>本期应还</dt><dd class="money">1,200.00 万元</dd></div>
-              <div class="di"><dt>还款日期</dt><dd class="money">2026-03-20</dd></div>
-              <div class="di"><dt>综合成本</dt><dd class="money">4.35%</dd></div>
-              <div class="di"><dt>利息计提</dt><dd class="money">41.98 万元</dd></div>
+              <div class="di"><dt>已放款金额</dt><dd class="money"><span class="redact">11,580.00 万元</span></dd></div>
+              <div class="di"><dt>本期应还</dt><dd class="money"><span class="redact">1,200.00 万元</span></dd></div>
+              <div class="di"><dt>还款日期</dt><dd class="money"><span class="redact">2026-03-20</span></dd></div>
+              <div class="di"><dt>综合成本</dt><dd class="money"><span class="redact">4.35%</span></dd></div>
+              <div class="di"><dt>利息计提</dt><dd class="money"><span class="redact">41.98 万元</span></dd></div>
             </div>
             <div class="note" style="margin-top:12px">
               系统按授信节点自动生成还款计划与利息计提，逾期前 15 天推送提醒。
@@ -435,10 +436,10 @@ tbody tr.on{background:var(--blue-l)}
           <div class="card-h">归档材料</div>
           <div class="card-b" style="padding-top:8px">
             <div class="desc" style="grid-template-columns:1fr">
-              <div class="di"><dt>申请担保函</dt><dd>已上传 · 2026-01-05</dd></div>
-              <div class="di"><dt>集团董事会决议</dt><dd>已上传 · 2026-01-08</dd></div>
-              <div class="di"><dt>国资委备案表</dt><dd style="color:var(--orange)">待上传</dd></div>
-              <div class="di"><dt>国资委备案金额</dt><dd class="money">18,000.00 万元</dd></div>
+              <div class="di"><dt>申请担保函</dt><dd><span class="redact">已上传 · 2026-01-05</span></dd></div>
+              <div class="di"><dt>放款执行决议</dt><dd><span class="redact">已上传 · 2026-01-08</span></dd></div>
+              <div class="di"><dt>合同归档</dt><dd style="color:var(--orange)"><span class="redact">待上传</span></dd></div>
+              <div class="di"><dt>放款核准金额</dt><dd class="money"><span class="redact">18,000.00 万元</span></dd></div>
             </div>
           </div>
         </div>
