@@ -2907,21 +2907,36 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
       for(var gy = 56; gy < VBH; gy += 84){
         out.push('<path d="M0 ' + gy + 'H' + VBW + '" stroke="rgba(21,22,20,.05)"/>');
       }
-      /* 示意海岸线：整体在点位以东 */
+      /* 示意海岸线：沿点位右侧平滑起伏，避免出现一条直边 */
       var coast = [], maxPx = 0;
       PTS.forEach(function(p){ maxPx = Math.max(maxPx, xy(p)[0]); });
-      for(var yy = -20; yy <= VBH + 20; yy += 36){
-        var cx = maxPx + 58;
-        PTS.forEach(function(p){
-          var q = xy(p);
-          if(Math.abs(q[1] - yy) <= 70) cx = Math.max(cx, q[0] + 46);
-        });
+      coast.push([maxPx + 84, -24]);
+      var segs = 7;
+      for(var k = 0; k <= segs; k++){
+        var yy = -20 + (VBH + 40) * k / segs;
+        /* 越靠上越向内收，中段外凸，形成自然的海湾弧度 */
+        var wave = Math.sin(k / segs * Math.PI * 1.6 + 0.5) * 26
+                 + Math.sin(k / segs * Math.PI * 4.1) * 12;
+        var cx = maxPx + 62 + wave;
         coast.push([cx, yy]);
       }
-      var dCoast = coast.map(function(c, k){ return (k ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1); }).join(' ');
-      out.push('<path d="' + dCoast + ' L' + VBW + ' ' + VBH + ' L' + VBW + ' 0 Z" fill="rgba(122,162,214,.10)"/>');
-      out.push('<path d="' + dCoast + '" fill="none" stroke="rgba(21,22,20,.22)" stroke-dasharray="6 5"/>');
-      out.push('<text x="' + (maxPx + 150) + '" y="' + (VBH * .42) + '" font-size="15" fill="rgba(21,22,20,.3)" style="letter-spacing:.5em" writing-mode="tb">黄 海 · 示意</text>');
+      coast.push([maxPx + 84, VBH + 24]);
+
+      /* 用平滑曲线连接（Catmull-Rom 转贝塞尔） */
+      function smoothPath(pts){
+        var d = 'M' + pts[0][0].toFixed(1) + ' ' + pts[0][1].toFixed(1);
+        for(var i = 0; i < pts.length - 1; i++){
+          var p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+          var c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
+          var c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
+          d += ' C' + c1x.toFixed(1) + ' ' + c1y.toFixed(1) + ',' + c2x.toFixed(1) + ' ' + c2y.toFixed(1)
+             + ',' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
+        }
+        return d;
+      }
+      var dCoast = smoothPath(coast);
+      out.push('<path d="' + dCoast + ' L' + VBW + ' ' + VBH + ' L' + VBW + ' 0 Z" fill="rgba(122,162,214,.07)"/>');
+      out.push('<path d="' + dCoast + '" fill="none" stroke="rgba(21,22,20,.16)" stroke-dasharray="5 6"/>');
       /* 候选路线（虚线） + 最佳路线（实线滚动） */
       for(var c = Math.min(2, all.length - 1); c >= 1; c--){
         out.push(routePath(all[c].p, 'rc').replace('class="rc"', 'class="rc" stroke="rgba(21,22,20,.26)" stroke-width="1.5" stroke-dasharray="3 6"'));
