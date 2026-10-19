@@ -970,6 +970,15 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
 .sc-table tr:last-child td{border-bottom:0}
 .sc-table td.ok{color:#5FD4A0}
 .sc-table td.warn{color:var(--sc-warn)}
+/* ============ 路线规划演示（恢复） ============ */
+.route-map{
+  border:1px solid var(--line-strong);border-radius:var(--r-inner);
+  background:var(--panel-head);overflow:hidden;cursor:crosshair;
+}
+.route-map svg{width:100%;height:auto;display:block}
+.route-best{stroke-dasharray:9 6;animation:dashmove 1.1s linear infinite}
+@keyframes dashmove{0%{stroke-dashoffset:0}100%{stroke-dashoffset:-15}}
+
 </style>
 </head>
 <body>
@@ -1426,6 +1435,35 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
           </div>
           <div class="layers-grid" id="layerWrap"></div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 多点位路线规划 -->
+  <section class="case-slide" id="case-route">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <span class="sec-idx">项目案例</span>
+        <h2>多点位路线规划</h2>
+        <p class="lead">在多点位之间求解总里程最短的访问路径。页面内实时执行贪心构造与随机重启，输出多条候选路线；点位间距离按经纬度球面距离（haversine）计算。</p>
+        <p class="case-scene"><i>适用场景</i>巡检线路 · 样本采集 · 配送派单 · 外勤排班</p>
+      </div>
+
+      <div class="demo reveal">
+        <div class="demo-bar">
+          <span class="demo-title"><span class="live-dot" aria-hidden="true"></span>观测路线规划演示</span>
+          <div class="demo-metrics">
+            <div class="metric"><span class="metric-val" id="routePts">0</span><span class="metric-lab">观测点</span></div>
+            <div class="metric"><span class="metric-val" id="routeBest">—</span><span class="metric-lab">最佳路线 km</span></div>
+            <div class="metric"><span class="metric-val" id="routeN">—</span><span class="metric-lab">候选路线</span></div>
+            <button class="btn btn-outline btn-sm" id="routeBtn" type="button">重新规划</button>
+          </div>
+        </div>
+
+        <div class="route-map" id="routeMap">
+          <svg class="viz-svg" id="routeSvg" viewBox="0 0 1000 560" role="img" aria-label="沿海湿地观测点位与候选路线示意图，路线由贪心加随机重启算法实时计算"></svg>
+        </div>
+
       </div>
     </div>
   </section>
@@ -2769,6 +2807,164 @@ footer{border-top:1px solid var(--line);padding:36px 0 46px;font-size:13px;color
     setTimeout(function(){ if(!scBooted) scBoot(); }, 400);
   })();
 
+  /* 多点位路线规划：贪心 + 随机重启，输出多条候选路线 */
+  (function(){
+    var svg = document.getElementById('routeSvg');
+    var map = document.getElementById('routeMap');
+    if(!svg || !map) return;
+    var ptsEl = document.getElementById('routePts');
+    var bestEl = document.getElementById('routeBest');
+    var nEl = document.getElementById('routeN');
+    var btn = document.getElementById('routeBtn');
+
+    var PTS = [
+      {name:'珍禽保护区', lon:120.58, lat:33.52},
+      {name:'新洋港',     lon:120.42, lat:33.38},
+      {name:'斗龙港',     lon:120.64, lat:33.20},
+      {name:'麋鹿保护区', lon:120.81, lat:33.06},
+      {name:'川东港',     lon:120.72, lat:32.94},
+      {name:'条子泥',     lon:120.94, lat:32.76},
+      {name:'弶港',       lon:120.85, lat:32.62},
+      {name:'巴斗村',     lon:120.99, lat:32.55},
+      {name:'竹港',       lon:120.58, lat:32.72}
+    ];
+    var addCount = 0;
+    var seed = 20260929;
+    function rnd(){ seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+
+    /* 球面距离（km），与后端 haversine 同一套公式 */
+    function hav(a, b){
+      var R = 6371;
+      var dlon = (b.lon - a.lon) * Math.PI / 180, dlat = (b.lat - a.lat) * Math.PI / 180;
+      var h = Math.sin(dlat/2)*Math.sin(dlat/2)
+            + Math.cos(a.lat*Math.PI/180) * Math.cos(b.lat*Math.PI/180) * Math.sin(dlon/2)*Math.sin(dlon/2);
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+    function greedy(order){
+      var n = order.length, visited = {}, path = [order[0]], total = 0;
+      visited[order[0]] = true;
+      for(var k = 1; k < n; k++){
+        var last = path[path.length - 1], best = -1, bd = 1e18;
+        for(var i = 0; i < n; i++){
+          if(visited[order[i]]) continue;
+          var d = hav(PTS[last], PTS[order[i]]);
+          if(d < bd){ bd = d; best = order[i]; }
+        }
+        if(best < 0) break;
+        total += bd; path.push(best); visited[best] = true;
+      }
+      return {d: total, p: path};
+    }
+    function compute(){
+      var n = PTS.length, num = n <= 4 ? 2 : 10, all = [];
+      for(var t = 0; t < num; t++){
+        var order = PTS.map(function(_, i){ return i; });
+        for(var i = n - 1; i > 0; i--){
+          var j = Math.floor(rnd() * (i + 1)), tmp = order[i];
+          order[i] = order[j]; order[j] = tmp;
+        }
+        all.push(greedy(order));
+      }
+      all.sort(function(a, b){ return a.d - b.d; });
+      return all;
+    }
+
+    var VBW = 1000, VBH = 560, PADL = 80, PADR = 130, PADT = 66, PADB = 76;
+    function bounds(){
+      var lonMin = 1e9, lonMax = -1e9, latMin = 1e9, latMax = -1e9;
+      PTS.forEach(function(p){
+        lonMin = Math.min(lonMin, p.lon); lonMax = Math.max(lonMax, p.lon);
+        latMin = Math.min(latMin, p.lat); latMax = Math.max(latMax, p.lat);
+      });
+      return {lonMin: lonMin, lonMax: lonMax, latMin: latMin, latMax: latMax};
+    }
+    var B = bounds();
+    function xy(p){
+      return [ PADL + (p.lon - B.lonMin) / (B.lonMax - B.lonMin) * (VBW - PADL - PADR),
+               VBH - PADB - (p.lat - B.latMin) / (B.latMax - B.latMin) * (VBH - PADT - PADB) ];
+    }
+    function ixy(x, y){
+      return { lon: B.lonMin + (x - PADL) / (VBW - PADL - PADR) * (B.lonMax - B.lonMin),
+               lat: B.latMin + (VBH - PADB - y) / (VBH - PADT - PADB) * (B.latMax - B.latMin) };
+    }
+
+    function routePath(order, cls){
+      var d = order.map(function(i, k){
+        var q = xy(PTS[i]);
+        return (k ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1);
+      }).join(' ');
+      return '<path class="' + cls + '" d="' + d + '" fill="none"/>';
+    }
+
+    function render(){
+      B = bounds();
+      var all = compute();
+      var out = [];
+      /* 经纬网格 */
+      for(var gx = 60; gx < VBW; gx += 96){
+        out.push('<path d="M' + gx + ' 0V' + VBH + '" stroke="rgba(21,22,20,.05)"/>');
+      }
+      for(var gy = 56; gy < VBH; gy += 84){
+        out.push('<path d="M0 ' + gy + 'H' + VBW + '" stroke="rgba(21,22,20,.05)"/>');
+      }
+      /* 示意海岸线：整体在点位以东 */
+      var coast = [], maxPx = 0;
+      PTS.forEach(function(p){ maxPx = Math.max(maxPx, xy(p)[0]); });
+      for(var yy = -20; yy <= VBH + 20; yy += 36){
+        var cx = maxPx + 58;
+        PTS.forEach(function(p){
+          var q = xy(p);
+          if(Math.abs(q[1] - yy) <= 70) cx = Math.max(cx, q[0] + 46);
+        });
+        coast.push([cx, yy]);
+      }
+      var dCoast = coast.map(function(c, k){ return (k ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1); }).join(' ');
+      out.push('<path d="' + dCoast + ' L' + VBW + ' ' + VBH + ' L' + VBW + ' 0 Z" fill="rgba(122,162,214,.10)"/>');
+      out.push('<path d="' + dCoast + '" fill="none" stroke="rgba(21,22,20,.22)" stroke-dasharray="6 5"/>');
+      out.push('<text x="' + (maxPx + 150) + '" y="' + (VBH * .42) + '" font-size="15" fill="rgba(21,22,20,.3)" style="letter-spacing:.5em" writing-mode="tb">黄 海 · 示意</text>');
+      /* 候选路线（虚线） + 最佳路线（实线滚动） */
+      for(var c = Math.min(2, all.length - 1); c >= 1; c--){
+        out.push(routePath(all[c].p, 'rc').replace('class="rc"', 'class="rc" stroke="rgba(21,22,20,.26)" stroke-width="1.5" stroke-dasharray="3 6"'));
+      }
+      out.push(routePath(all[0].p, 'route-best').replace('class="route-best"', 'class="route-best" stroke="#151614" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"'));
+      /* 点位 */
+      PTS.forEach(function(p, i){
+        var q = xy(p);
+        var anchor = q[0] > VBW - 170 ? 'end' : 'start';
+        var lx = anchor === 'end' ? q[0] - 14 : q[0] + 14;
+        out.push('<g class="pt" data-i="' + i + '">'
+          + '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="16" fill="transparent"/>'
+          + '<circle cx="' + q[0].toFixed(1) + '" cy="' + q[1].toFixed(1) + '" r="6.5" fill="#151614" stroke="#F6F4EE" stroke-width="2"/>'
+          + '<text x="' + lx.toFixed(1) + '" y="' + (q[1] + 4).toFixed(1) + '" text-anchor="' + anchor
+          + '" font-size="13" fill="rgba(21,22,20,.72)" style="font-family:var(--mono)">' + p.name + '</text></g>');
+      });
+      /* 最佳路线起点：画在点位之上，作为"从这里出发"的标记 */
+      var sq = xy(PTS[all[0].p[0]]);
+      out.push('<rect x="' + (sq[0] - 5.5).toFixed(1) + '" y="' + (sq[1] - 5.5).toFixed(1) + '" width="11" height="11" rx="2.5" fill="none" stroke="#151614" stroke-width="1.6"/>');
+      svg.innerHTML = out.join('');
+
+      ptsEl.textContent = PTS.length;
+      bestEl.textContent = all[0].d.toFixed(1);
+      nEl.textContent = all.length;
+      
+    }
+    render();
+
+    if(btn) btn.addEventListener('click', function(){ seed = Math.floor(Math.random() * 99999999) + 1; render(); });
+    map.addEventListener('click', function(e){
+      var ptEl = e.target.closest ? e.target.closest('.pt') : null;
+      if(ptEl){
+        if(PTS.length > 4){ PTS.splice(+ptEl.getAttribute('data-i'), 1); render(); }
+        return;
+      }
+      if(PTS.length >= 12) return;
+      var r = svg.getBoundingClientRect();
+      var lonlat = ixy((e.clientX - r.left) / r.width * VBW, (e.clientY - r.top) / r.height * VBH);
+      addCount++;
+      PTS.push({name: '新增点 ' + addCount, lon: lonlat.lon, lat: lonlat.lat});
+      render();
+    });
+  })();
 })();
 </script>
 </body>
